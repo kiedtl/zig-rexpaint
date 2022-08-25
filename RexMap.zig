@@ -101,13 +101,11 @@ pub fn initFromFile(alloc: std.mem.Allocator, filename: []const u8) !Self {
 
     const reader = gz_stream.reader();
 
+    // If version >= 0, it's an old version of .xp format that doesn't have a version
+    // marker at all (so we read the layer count instead)
     const version = try reader.readIntLittle(i32);
 
-    if (version >= 0) {
-        return error.OldFileFormat;
-    }
-
-    self.layers = @intCast(usize, try reader.readIntLittle(i32));
+    self.layers = if (version >= 0) @bitCast(u32, version) else @intCast(usize, try reader.readIntLittle(i32));
     self.width = @intCast(usize, try reader.readIntLittle(i32));
     self.height = @intCast(usize, try reader.readIntLittle(i32));
 
