@@ -1,3 +1,16 @@
+//! A parser for REXPaint's .xp data format.
+//! The entire format is un-gzipped and read into memory at the same time.
+//!
+//! See main.zig for an example usage.
+//!
+//!
+//! See also:
+//! - REXPaint Homepage:
+//!   https://www.gridsagegames.com/rexpaint/
+//! - Format specification (Unofficial (and slightly outdated) version:
+//!   https://github.com/Lucide/REXPaint-manual/blob/master/manual.md#appendix-b-xp-format-specification-and-import-libraries
+//!
+
 const std = @import("std");
 
 // -----------------------------------------------------------------------------
@@ -8,20 +21,33 @@ height: usize,
 layers: usize,
 data: []Tile,
 
+/// A single REXPaint tile.
+///
+/// <ch> is *not* a Unicode codepoint, it is an index into an
+/// application-specific tilemap.
+///
+/// Use RexMap.DEFAULT_TILEMAP[tile.ch] to get a Unicode codepoint using
+/// REXPaint's default tilemap.
+///
 pub const Tile = struct {
     ch: u32,
     fg: RGB,
     bg: RGB,
 
+    /// Check if a tile should be considered transparent.
+    ///
+    /// (REXPaint considers tiles with a background of #ff00ff to be transparent.)
     pub fn isTransparent(self: Tile) bool {
         return self.bg.r == 255 and self.bg.g == 0 and self.bg.b == 255;
     }
 
+    /// A 24-bit RGB value.
     pub const RGB = struct {
         r: u8,
         g: u8,
         b: u8,
 
+        /// Convert an RGB{} to a u32 value of the formt #RRGGBB.
         pub fn asU32(self: RGB) u32 {
             return (@as(u32, self.r) << 16) | (@as(u32, self.g) << 8) | self.b;
         }
@@ -31,6 +57,10 @@ pub const Tile = struct {
 pub const Self = @This();
 
 // zig fmt: off
+/// The default tilemap used by REXPaint.
+///
+/// If you used a custom font with custom glyph placements when creating your
+/// images, you'll need to use your own tilemap.
 pub const DEFAULT_TILEMAP = [256]u21{
     16,  978,  978,  982,  983,  982,  982,  822,  969,  9675,  9689,
     9794,  9792,  9834,  9835,  9788,  9658,  9668,  8597,  8252,  182,
@@ -59,6 +89,8 @@ pub const DEFAULT_TILEMAP = [256]u21{
 
 const GzipFileStream = std.compress.gzip.GzipStream(std.fs.File.Reader);
 
+/// Open a file and completely parse it.
+///
 pub fn initFromFile(alloc: std.mem.Allocator, filename: []const u8) !Self {
     var self: Self = undefined;
     self.alloc = alloc;
@@ -114,29 +146,41 @@ pub fn initFromFile(alloc: std.mem.Allocator, filename: []const u8) !Self {
     return self;
 }
 
+/// Get a mutable pointer to the first opaque tile at an x,y coordinate,
+/// starting from the top-most layer.
 pub fn getMutPtr(self: *Self, x: usize, y: usize) *Tile {
     return self.getFromLayerMutPtr(self.layers - 1, x, y);
 }
 
+/// Get the first opaque tile at an x,y coordinate, starting from the top-most
+/// layer.
 pub fn get(self: *const Self, x: usize, y: usize) Tile {
     return self.getFromLayer(self.layers - 1, x, y);
 }
 
+/// Get a mutable pointer to the first opaque tile at an x,y coordinate,
+/// starting from a specific layer.
 pub fn getFromLayerMutPtr(self: *Self, z: usize, x: usize, y: usize) *Tile {
     const tile = self.getRawMutPtr(z, x, y);
-    return if (z != 0 and tile.isTransparent()) self.getFromLayer(z - 1, x, y) else tile;
+    return if (z == 0 or !tile.isTransparent()) tile else self.getFromLayerMutPtr(z - 1, x, y);
 }
 
+/// Get the first opaque tile at an x,y coordinate, starting from a specific
+/// layer.
 pub fn getFromLayer(self: *const Self, z: usize, x: usize, y: usize) Tile {
     const tile = self.getRaw(z, x, y);
-    return if (z != 0 and tile.isTransparent()) self.getFromLayer(z - 1, x, y) else tile;
+    return if (z == 0 or !tile.isTransparent()) tile else self.getFromLayer(z - 1, x, y);
 }
 
-pub inline fn getRawMutPtr(self: *const Self, z: usize, x: usize, y: usize) *Tile {
+/// Get a mutable pointer to the tile at an x,y coordinate from a specific
+/// layer. Won't search the lower layers if the tile is transparent.
+pub fn getRawMutPtr(self: *const Self, z: usize, x: usize, y: usize) *Tile {
     return &self.data[x + (y * self.width) + (z * (self.width * self.height))];
 }
 
-pub inline fn getRaw(self: *const Self, z: usize, x: usize, y: usize) Tile {
+/// Get the tile at an x,y coordinate from a specific layer. Won't search the
+/// lower layers if the tile is transparent.
+pub fn getRaw(self: *const Self, z: usize, x: usize, y: usize) Tile {
     return self.data[x + (y * self.width) + (z * (self.width * self.height))];
 }
 
