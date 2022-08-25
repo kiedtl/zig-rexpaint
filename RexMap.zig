@@ -109,6 +109,10 @@ pub fn initFromFile(alloc: std.mem.Allocator, filename: []const u8) !Self {
     self.width = @intCast(usize, try reader.readIntLittle(i32));
     self.height = @intCast(usize, try reader.readIntLittle(i32));
 
+    if (self.layers < 1 or self.layers > 9) {
+        return error.InvalidLayerCount;
+    }
+
     self.data = try self.alloc.alloc(Tile, self.layers * self.height * self.width);
 
     var z: usize = 0;
