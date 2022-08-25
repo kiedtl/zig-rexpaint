@@ -10,6 +10,10 @@
 //! - Format specification (Unofficial (and slightly outdated) version:
 //!   https://github.com/Lucide/REXPaint-manual/blob/master/manual.md#appendix-b-xp-format-specification-and-import-libraries
 //!
+//! (c) 2022 Kied Llaentenn
+//!
+//! zig-rexpaint is licensed under the MIT license. See the COPYING file for
+//! more details.
 
 const std = @import("std");
 
