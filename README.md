@@ -21,3 +21,9 @@ pub fn build(b: *Builder) void {
     // snip
 }
 ```
+
+## License
+
+zig-rexpaint is licensed under the MIT license. You are free to use zig-rexpaint
+anywhere you wish, provided the copyright notice and license is preserved with
+it.
