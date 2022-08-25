@@ -1,3 +1,8 @@
+// TODO:
+// - Ensure images from pre-0.9 versions are parsed correctly (i.e. files
+//   without the version metadata in the header)
+//
+
 const std = @import("std");
 
 const RexMap = @import("RexMap.zig");

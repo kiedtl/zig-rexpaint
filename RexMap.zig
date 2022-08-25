@@ -13,8 +13,6 @@
 
 const std = @import("std");
 
-// -----------------------------------------------------------------------------
-
 alloc: std.mem.Allocator,
 width: usize,
 height: usize,
