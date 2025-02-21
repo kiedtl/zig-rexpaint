@@ -10,7 +10,7 @@
 //! - Format specification (Unofficial (and slightly outdated) version:
 //!   https://github.com/Lucide/REXPaint-manual/blob/master/manual.md#appendix-b-xp-format-specification-and-import-libraries
 //!
-//! (c) 2022 Kied Llaentenn
+//! (c) 2022-2025 Kied Llaentenn
 //!
 //! zig-rexpaint is licensed under the MIT license. See the COPYING file for
 //! more details.
@@ -97,21 +97,21 @@ pub fn initFromFile(alloc: std.mem.Allocator, filename: []const u8) !Self {
     var self: Self = undefined;
     self.alloc = alloc;
 
-    const file = try std.fs.cwd().openFile(filename, .{ .read = true });
+    const file = try std.fs.cwd().openFile(filename, .{});
     defer file.close();
 
-    var gz_stream = try std.compress.gzip.gzipStream(alloc, file.reader());
-    defer gz_stream.deinit();
+    var gz_stream = std.compress.gzip.decompressor(file.reader());
+    //defer gz_stream.deinit();
 
     const reader = gz_stream.reader();
 
     // If version >= 0, it's an old version of .xp format that doesn't have a version
     // marker at all (so we read the layer count instead)
-    const version = try reader.readIntLittle(i32);
+    const version = try reader.readInt(i32, .little);
 
-    self.layers = if (version >= 0) @bitCast(u32, version) else @intCast(usize, try reader.readIntLittle(i32));
-    self.width = @intCast(usize, try reader.readIntLittle(i32));
-    self.height = @intCast(usize, try reader.readIntLittle(i32));
+    self.layers = if (version >= 0) @as(u32, @bitCast(version)) else @intCast(try reader.readInt(i32, .little));
+    self.width = @intCast(try reader.readInt(i32, .little));
+    self.height = @intCast(try reader.readInt(i32, .little));
 
     if (self.layers < 1 or self.layers > 9) {
         return error.InvalidLayerCount;
@@ -125,8 +125,8 @@ pub fn initFromFile(alloc: std.mem.Allocator, filename: []const u8) !Self {
         // are the (redundant) width and height for the current layer
         //
         if (z > 0) {
-            _ = try reader.readIntLittle(i32);
-            _ = try reader.readIntLittle(i32);
+            _ = try reader.readInt(i32, .little);
+            _ = try reader.readInt(i32, .little);
         }
 
         var x: usize = 0;
@@ -134,13 +134,13 @@ pub fn initFromFile(alloc: std.mem.Allocator, filename: []const u8) !Self {
             var y: usize = 0;
             while (y < self.height) : (y += 1) {
                 var tile: Tile = undefined;
-                tile.ch = try reader.readIntLittle(u32);
-                tile.fg.r = try reader.readIntLittle(u8);
-                tile.fg.g = try reader.readIntLittle(u8);
-                tile.fg.b = try reader.readIntLittle(u8);
-                tile.bg.r = try reader.readIntLittle(u8);
-                tile.bg.g = try reader.readIntLittle(u8);
-                tile.bg.b = try reader.readIntLittle(u8);
+                tile.ch = try reader.readInt(u32, .little);
+                tile.fg.r = try reader.readInt(u8, .little);
+                tile.fg.g = try reader.readInt(u8, .little);
+                tile.fg.b = try reader.readInt(u8, .little);
+                tile.bg.r = try reader.readInt(u8, .little);
+                tile.bg.g = try reader.readInt(u8, .little);
+                tile.bg.b = try reader.readInt(u8, .little);
 
                 self.getRawMutPtr(z, x, y).* = tile;
             }
